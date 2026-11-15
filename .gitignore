@@ -1,0 +1,9 @@
+build/
+.gradle/
+outils/jdk21/
+outils/gradle-*/
+run/
+out/
+.idea/
+*.iml
+.vscode/
