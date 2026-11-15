@@ -1,0 +1,7 @@
+{
+  "category.botc-notes": "Bloc-notes",
+  "key.botc-notes.toggle": "Afficher / masquer le bloc-notes",
+  "key.botc-notes.cursor": "Libérer la souris (maintenir)",
+  "botc-notes.title": "Notes",
+  "botc-notes.placeholder": "Appuyez sur %1$s pour afficher/masquer la note\nAppuyez sur %2$s pour écrire, déplacer ou redimensionner"
+}
