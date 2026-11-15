@@ -1,28 +1,28 @@
 package fr.botc.notes;
 
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.EditBoxWidget;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Écran transparent ouvert tant que la touche « libérer la souris » est maintenue :
- * la souris apparaît, la caméra ne bouge plus, le jeu continue.
- * Clic dans la note = mode écriture (reste ouvert même Alt relâché, jusqu'à Échap ou clic à côté).
- * Barre de titre = déplacer, coin bas-droit = redimensionner.
+ * Écran transparent d'édition : le jeu continue, la souris est libre.
+ * Se ferme avec Échap, la touche d'ouverture (hors écriture) ou un clic à côté de la note.
  */
 public class NoteScreen extends Screen {
-    private static final int HANDLE_SIZE = 7;
+    private static final int HANDLE_SIZE = 12;
 
-    private EditBoxWidget editor;
+    private NoteEditor editor;
     private boolean dragging;
     private boolean resizing;
     private double grabX, grabY;
     private int startW, startH;
+
+    private boolean renaming;
+    private final StringBuilder renameBuf = new StringBuilder();
+    private int confirmDelete = -1;
+    private long lastClickTime;
+    private int lastClickTab = -1;
 
     public NoteScreen() {
         super(Text.translatable("botc-notes.title"));
@@ -32,31 +32,32 @@ public class NoteScreen extends Screen {
         return NoteData.get();
     }
 
+    // ---------- Éditeur ----------
+
+    private NoteEditor createEditor() {
+        NoteData d = data();
+        NoteEditor e = new NoteEditor(textRenderer,
+                d.x + NoteData.BORDER, d.y + NoteData.TAB_H + 2,
+                d.w - 2 * NoteData.BORDER, d.h - NoteData.TAB_H - 2 - NoteData.BORDER,
+                NoteRenderer.placeholder(), Text.translatable("botc-notes.title"));
+        e.setText(d.current());
+        e.setChangeListener(s -> d.setCurrent(s));
+        return e;
+    }
+
     @Override
     protected void init() {
-        NoteData d = data();
-        d.clamp(width, height);
+        data().clamp(width, height);
         boolean wasFocused = editor != null && editor.isFocused();
-        editor = new EditBoxWidget(textRenderer, d.x, d.y + NoteData.TITLE_H, d.w, d.h - NoteData.TITLE_H,
-                NoteRenderer.placeholder(), Text.translatable("botc-notes.title"));
-        editor.setMaxLength(20000);
-        editor.setText(d.text);
-        editor.setChangeListener(s -> d.text = s);
+        editor = createEditor();
         addDrawableChild(editor);
         if (wasFocused) setFocused(editor);
     }
 
-    /** Recrée la zone de texte à la nouvelle taille/position en gardant le focus. */
     private void relayout() {
         boolean focused = editor.isFocused();
         remove(editor);
-        NoteData d = data();
-        EditBoxWidget e = new EditBoxWidget(textRenderer, d.x, d.y + NoteData.TITLE_H, d.w, d.h - NoteData.TITLE_H,
-                NoteRenderer.placeholder(), Text.translatable("botc-notes.title"));
-        e.setMaxLength(20000);
-        e.setText(d.text);
-        e.setChangeListener(s -> d.text = s);
-        editor = e;
+        editor = createEditor();
         addDrawableChild(editor);
         if (focused) setFocused(editor);
     }
@@ -68,21 +69,35 @@ public class NoteScreen extends Screen {
 
     @Override
     public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
-        // pas de flou ni d'assombrissement : on continue de voir le jeu
+        // pas de flou ni d'assombrissement
     }
+
+    // ---------- Rendu ----------
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         NoteData d = data();
         NoteRenderer.drawFrame(ctx, textRenderer, d);
+        int c = 0x40FFFFFF;
+        ctx.fill(d.x, d.y, d.x + d.w, d.y + 1, c);
+        ctx.fill(d.x, d.y + d.h - 1, d.x + d.w, d.y + d.h, c);
+        ctx.fill(d.x, d.y, d.x + 1, d.y + d.h, c);
+        ctx.fill(d.x + d.w - 1, d.y, d.x + d.w, d.y + d.h, c);
         super.render(ctx, mouseX, mouseY, delta);
         NoteRenderer.drawHandle(ctx, d);
+        NoteRenderer.drawTabs(ctx, textRenderer, d, true, mouseX, mouseY, confirmDelete);
+
+        if (renaming) {
+            int tx = NoteRenderer.tabX(textRenderer, d, d.page);
+            int tw = Math.max(NoteRenderer.tabWidths(textRenderer, d)[d.page], 80);
+            ctx.fill(tx, d.y + 1, tx + tw, d.y + NoteData.TAB_H, 0xFF202020);
+            ctx.fill(tx, d.y + NoteData.TAB_H - 1, tx + tw, d.y + NoteData.TAB_H, NoteRenderer.ACCENT);
+            String s = renameBuf + (System.currentTimeMillis() / 500 % 2 == 0 ? "_" : "");
+            ctx.drawText(textRenderer, s, tx + 3, d.y + 3, 0xFFFFFFFF, false);
+        }
     }
 
-    private boolean inTitle(double mx, double my) {
-        NoteData d = data();
-        return mx >= d.x && mx < d.x + d.w && my >= d.y && my < d.y + NoteData.TITLE_H;
-    }
+    // ---------- Zones ----------
 
     private boolean inHandle(double mx, double my) {
         NoteData d = data();
@@ -94,28 +109,114 @@ public class NoteScreen extends Screen {
         return mx >= d.x && mx < d.x + d.w && my >= d.y && my < d.y + d.h;
     }
 
+    /** Zone de déplacement : barre d'onglets (partie libre) + bords. */
+    private boolean inBorder(double mx, double my) {
+        NoteData d = data();
+        if (!inNote(mx, my)) return false;
+        int b = NoteData.BORDER;
+        return my < d.y + NoteData.TAB_H || mx < d.x + b || mx >= d.x + d.w - b || my >= d.y + d.h - b;
+    }
+
+    // ---------- Onglets ----------
+
+    private void switchTo(int i) {
+        NoteData d = data();
+        if (i < 0 || i >= d.tabs.size() || i == d.page) return;
+        d.page = i;
+        relayout();
+        d.save();
+    }
+
+    private void startRename() {
+        renaming = true;
+        renameBuf.setLength(0);
+        renameBuf.append(data().currentTab().name);
+        setFocused(null);
+        editor.setFocused(false);
+    }
+
+    private void commitRename() {
+        String s = renameBuf.toString().trim();
+        data().currentTab().name = s.isEmpty() ? "Untitled" : s;
+        renaming = false;
+        data().save();
+    }
+
+    private void deleteTab(int i) {
+        NoteData d = data();
+        if (d.tabs.size() <= 1) return;
+        d.tabs.remove(i);
+        if (d.page > i || d.page >= d.tabs.size()) d.page = Math.max(0, d.page - 1);
+        relayout();
+        d.save();
+    }
+
+    // ---------- Souris ----------
+
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        NoteData d = data();
+        if (renaming) {
+            commitRename();
+            return true;
+        }
+
+        int tab = NoteRenderer.tabAt(textRenderer, d, mx, my);
+        if (tab == NoteRenderer.PLUS) {
+            confirmDelete = -1;
+            if (button == 0 && d.tabs.size() < NoteData.MAX_TABS) {
+                d.tabs.add(new NoteData.Tab());
+                d.page = d.tabs.size() - 1;
+                relayout();
+                startRename();
+            }
+            return true;
+        }
+        if (tab >= 0) {
+            if (button == 0) {
+                if (NoteRenderer.inClose(textRenderer, d, tab, mx)) {
+                    if (confirmDelete == tab || d.tabs.get(tab).text.isEmpty()) {
+                        confirmDelete = -1;
+                        deleteTab(tab);
+                    } else {
+                        confirmDelete = tab;
+                    }
+                    return true;
+                }
+                confirmDelete = -1;
+                long now = System.currentTimeMillis();
+                boolean dbl = tab == lastClickTab && now - lastClickTime < 350;
+                lastClickTime = now;
+                lastClickTab = tab;
+                switchTo(tab);
+                if (dbl) startRename();
+            } else if (button == 1) {
+                confirmDelete = -1;
+                switchTo(tab);
+                startRename();
+            }
+            return true;
+        }
+        confirmDelete = -1;
+
         if (button == 0 && inHandle(mx, my)) {
             resizing = true;
             grabX = mx;
             grabY = my;
-            startW = data().w;
-            startH = data().h;
+            startW = d.w;
+            startH = d.h;
             return true;
         }
-        if (button == 0 && inTitle(mx, my)) {
+        if (button == 0 && inBorder(mx, my)) {
             dragging = true;
-            grabX = mx - data().x;
-            grabY = my - data().y;
+            grabX = mx - d.x;
+            grabY = my - d.y;
             return true;
         }
         if (inNote(mx, my)) {
             return super.mouseClicked(mx, my, button);
         }
-        // clic à côté : on arrête d'écrire
-        setFocused(null);
-        editor.setFocused(false);
+        close();
         return true;
     }
 
@@ -126,8 +227,8 @@ public class NoteScreen extends Screen {
             d.x = (int) Math.round(mx - grabX);
             d.y = (int) Math.round(my - grabY);
             d.clamp(width, height);
-            editor.setX(d.x);
-            editor.setY(d.y + NoteData.TITLE_H);
+            editor.setX(d.x + NoteData.BORDER);
+            editor.setY(d.y + NoteData.TAB_H + 2);
             return true;
         }
         if (resizing) {
@@ -152,27 +253,45 @@ public class NoteScreen extends Screen {
         return super.mouseReleased(mx, my, button);
     }
 
+    // ---------- Clavier ----------
+
     @Override
-    public void tick() {
-        super.tick();
-        boolean writing = editor != null && editor.isFocused();
-        if (!writing && !dragging && !resizing && !cursorKeyHeld()) {
-            close();
+    public boolean charTyped(char chr, int modifiers) {
+        if (renaming) {
+            if (chr >= 32 && chr != 127 && renameBuf.length() < NoteData.MAX_NAME) renameBuf.append(chr);
+            return true;
         }
+        return super.charTyped(chr, modifiers);
     }
 
-    static boolean cursorKeyHeld() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        InputUtil.Key key = KeyBindingHelper.getBoundKeyOf(BotcNotes.cursorKey);
-        if (key == null || key.getCode() < 0) return false;
-        long window = mc.getWindow().getHandle();
-        if (key.getCategory() == InputUtil.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, key.getCode()) == GLFW.GLFW_PRESS;
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (renaming) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                commitRename();
+            } else if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                renaming = false;
+            } else if (keyCode == GLFW.GLFW_KEY_BACKSPACE && renameBuf.length() > 0) {
+                renameBuf.setLength(renameBuf.length() - 1);
+            }
+            return true;
         }
-        if (key.getCategory() == InputUtil.Type.KEYSYM) {
-            return InputUtil.isKeyPressed(window, key.getCode());
+
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            close();
+            return true;
         }
-        return false;
+        if (BotcNotes.cursorKey.matchesKey(keyCode, scanCode) && !(editor != null && editor.isFocused())) {
+            close();
+            return true;
+        }
+
+        int n = Math.min(9, data().tabs.size());
+        if (hasControlDown() && keyCode >= GLFW.GLFW_KEY_1 && keyCode < GLFW.GLFW_KEY_1 + n) {
+            switchTo(keyCode - GLFW.GLFW_KEY_1);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override

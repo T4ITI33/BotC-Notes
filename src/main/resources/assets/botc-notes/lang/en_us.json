@@ -3,5 +3,5 @@
   "key.botc-notes.toggle": "Show / hide notepad",
   "key.botc-notes.cursor": "Free the mouse (hold)",
   "botc-notes.title": "Notes",
-  "botc-notes.placeholder": "Press %1$s to show/hide the note\nHold %2$s to write, move or resize"
+  "botc-notes.placeholder": "Press %1$s to show/hide the note\nPress %2$s to write, move or resize"
 }
