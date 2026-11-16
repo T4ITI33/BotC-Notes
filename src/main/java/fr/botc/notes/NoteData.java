@@ -15,6 +15,10 @@ import java.util.List;
 /** Position/taille (globales, config/botc-notes.json) + onglets (par monde, config/botc-notes/). */
 public class NoteData {
     public static final int BORDER = 12;
+    /** Bord gauche réduit : le texte commence presque contre le cadre. */
+    public static final int LEFT = 1;
+    /** Largeur de la bande de déplacement à gauche. */
+    public static final int LEFT_GRAB = 4;
     public static final int TAB_H = 14;
     public static final int MIN_W = 90;
     public static final int MIN_H = 50;
@@ -38,6 +42,8 @@ public class NoteData {
 
     // Réglages globaux
     public boolean visible = true;
+    /** true = maintenir la touche pour garder la souris libre, false = appui pour basculer. */
+    public boolean cursorHold = false;
     public int x = 8;
     public int y = 40;
     public int w = 170;

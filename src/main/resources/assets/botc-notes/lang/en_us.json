@@ -1,7 +1,13 @@
 {
   "category.botc-notes": "Notepad",
   "key.botc-notes.toggle": "Show / hide notepad",
-  "key.botc-notes.cursor": "Free the mouse (hold)",
+  "key.botc-notes.cursor": "Free the mouse",
   "botc-notes.title": "Notes",
-  "botc-notes.placeholder": "Press %1$s to show/hide the note\nPress %2$s to write, move or resize"
+  "botc-notes.placeholder": "Press %1$s to show/hide the note\nPress %2$s to write, move or resize",
+  "botc-notes.config.title": "BotC Notes — settings",
+  "botc-notes.config.cursor_mode": "%s key",
+  "botc-notes.config.cursor_mode.press": "Press (toggle)",
+  "botc-notes.config.cursor_mode.hold": "Hold",
+  "botc-notes.config.cursor_mode.press.tip": "Press once to free the mouse, press again (or Esc, or click outside) to take it back.",
+  "botc-notes.config.cursor_mode.hold.tip": "The mouse stays free while the key is held. Clicking into the note to write keeps it open until Esc or a click outside."
 }

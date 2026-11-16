@@ -37,8 +37,8 @@ public class NoteScreen extends Screen {
     private NoteEditor createEditor() {
         NoteData d = data();
         NoteEditor e = new NoteEditor(textRenderer,
-                d.x + NoteData.BORDER, d.y + NoteData.TAB_H + 2,
-                d.w - 2 * NoteData.BORDER, d.h - NoteData.TAB_H - 2 - NoteData.BORDER,
+                d.x + NoteData.LEFT, d.y + NoteData.TAB_H + 2,
+                d.w - NoteData.LEFT - NoteData.BORDER, d.h - NoteData.TAB_H - 2 - NoteData.BORDER,
                 NoteRenderer.placeholder(), Text.translatable("botc-notes.title"));
         e.setText(d.current());
         e.setChangeListener(s -> d.setCurrent(s));
@@ -62,6 +62,16 @@ public class NoteScreen extends Screen {
         if (focused) setFocused(editor);
     }
 
+    /** Mode « maintenir » : on ferme dès que la touche est relâchée, sauf pendant l'écriture,
+     *  le renommage ou un déplacement/redimensionnement en cours. */
+    @Override
+    public void tick() {
+        super.tick();
+        if (!data().cursorHold || renaming || dragging || resizing) return;
+        if (editor != null && editor.isFocused()) return;
+        if (!BotcNotes.isCursorKeyDown(client)) close();
+    }
+
     @Override
     public boolean shouldPause() {
         return false;
@@ -78,11 +88,6 @@ public class NoteScreen extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         NoteData d = data();
         NoteRenderer.drawFrame(ctx, textRenderer, d);
-        int c = 0x40FFFFFF;
-        ctx.fill(d.x, d.y, d.x + d.w, d.y + 1, c);
-        ctx.fill(d.x, d.y + d.h - 1, d.x + d.w, d.y + d.h, c);
-        ctx.fill(d.x, d.y, d.x + 1, d.y + d.h, c);
-        ctx.fill(d.x + d.w - 1, d.y, d.x + d.w, d.y + d.h, c);
         super.render(ctx, mouseX, mouseY, delta);
         NoteRenderer.drawHandle(ctx, d);
         NoteRenderer.drawTabs(ctx, textRenderer, d, true, mouseX, mouseY, confirmDelete);
@@ -114,7 +119,7 @@ public class NoteScreen extends Screen {
         NoteData d = data();
         if (!inNote(mx, my)) return false;
         int b = NoteData.BORDER;
-        return my < d.y + NoteData.TAB_H || mx < d.x + b || mx >= d.x + d.w - b || my >= d.y + d.h - b;
+        return my < d.y + NoteData.TAB_H || mx < d.x + NoteData.LEFT_GRAB || mx >= d.x + d.w - b || my >= d.y + d.h - b;
     }
 
     // ---------- Onglets ----------
@@ -227,7 +232,7 @@ public class NoteScreen extends Screen {
             d.x = (int) Math.round(mx - grabX);
             d.y = (int) Math.round(my - grabY);
             d.clamp(width, height);
-            editor.setX(d.x + NoteData.BORDER);
+            editor.setX(d.x + NoteData.LEFT);
             editor.setY(d.y + NoteData.TAB_H + 2);
             return true;
         }
@@ -281,7 +286,8 @@ public class NoteScreen extends Screen {
             close();
             return true;
         }
-        if (BotcNotes.cursorKey.matchesKey(keyCode, scanCode) && !(editor != null && editor.isFocused())) {
+        if (BotcNotes.cursorKey.matchesKey(keyCode, scanCode) && !data().cursorHold
+                && !(editor != null && editor.isFocused())) {
             close();
             return true;
         }

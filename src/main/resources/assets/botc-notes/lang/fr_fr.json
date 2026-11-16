@@ -1,7 +1,13 @@
 {
   "category.botc-notes": "Bloc-notes",
   "key.botc-notes.toggle": "Afficher / masquer le bloc-notes",
-  "key.botc-notes.cursor": "Libérer la souris (maintenir)",
+  "key.botc-notes.cursor": "Libérer la souris",
   "botc-notes.title": "Notes",
-  "botc-notes.placeholder": "Appuyez sur %1$s pour afficher/masquer la note\nAppuyez sur %2$s pour écrire, déplacer ou redimensionner"
+  "botc-notes.placeholder": "Appuyez sur %1$s pour afficher/masquer la note\nAppuyez sur %2$s pour écrire, déplacer ou redimensionner",
+  "botc-notes.config.title": "BotC Notes — réglages",
+  "botc-notes.config.cursor_mode": "Touche %s",
+  "botc-notes.config.cursor_mode.press": "Appui (bascule)",
+  "botc-notes.config.cursor_mode.hold": "Maintenir",
+  "botc-notes.config.cursor_mode.press.tip": "Un appui libère la souris, un autre appui (ou Échap, ou un clic à côté) la reprend.",
+  "botc-notes.config.cursor_mode.hold.tip": "La souris reste libre tant que la touche est maintenue. Si tu cliques dans la note pour écrire, elle reste ouverte jusqu'à Échap ou un clic à côté."
 }

@@ -16,6 +16,9 @@ public final class NoteRenderer {
     public static final int HANDLE = 0xFFB0B0B0;
     public static final int PLACEHOLDER_FG = 0xFF8A8A8A;
     public static final int ACCENT = 0xFFE8C9A0;
+    public static final int OUTLINE = 0x40FFFFFF;
+    /** Marge intérieure de la zone de texte (EditBoxWidget), reprise par le HUD pour ne rien décaler. */
+    public static final int TEXT_PAD = 4;
 
     public static final int NONE = -1;
     public static final int PLUS = -2;
@@ -26,6 +29,12 @@ public final class NoteRenderer {
     public static void drawFrame(DrawContext ctx, TextRenderer tr, NoteData d) {
         ctx.fill(d.x, d.y, d.x + d.w, d.y + d.h, BG);
         ctx.fill(d.x, d.y, d.x + d.w, d.y + NoteData.TAB_H, TABBAR_BG);
+        // contour toujours affiché (avant : seulement avec Alt, ce qui décalait l'affichage)
+        int c = OUTLINE;
+        ctx.fill(d.x, d.y, d.x + d.w, d.y + 1, c);
+        ctx.fill(d.x, d.y + d.h - 1, d.x + d.w, d.y + d.h, c);
+        ctx.fill(d.x, d.y, d.x + 1, d.y + d.h, c);
+        ctx.fill(d.x + d.w - 1, d.y, d.x + d.w, d.y + d.h, c);
     }
 
     public static void drawHandle(DrawContext ctx, NoteData d) {
@@ -133,14 +142,14 @@ public final class NoteRenderer {
         boolean empty = text.isEmpty();
         StringVisitable content = empty ? placeholder() : StringVisitable.plain(text);
         int color = empty ? PLACEHOLDER_FG : TEXT_FG;
-        List<OrderedText> lines = tr.wrapLines(content, d.w - 2 * NoteData.BORDER);
+        List<OrderedText> lines = tr.wrapLines(content, d.w - NoteData.LEFT - NoteData.BORDER - 2 * TEXT_PAD);
 
-        int top = d.y + NoteData.TAB_H + 4;
-        int bottom = d.y + d.h - 2;
+        int top = d.y + NoteData.TAB_H + 2 + TEXT_PAD;
+        int bottom = d.y + d.h - NoteData.BORDER - TEXT_PAD;
         int maxLines = Math.max(1, (bottom - top) / tr.fontHeight);
         int start = Math.max(0, lines.size() - maxLines);
         for (int i = start; i < lines.size(); i++) {
-            ctx.drawText(tr, lines.get(i), d.x + NoteData.BORDER, top, color, true);
+            ctx.drawText(tr, lines.get(i), d.x + NoteData.LEFT + TEXT_PAD, top, color, true);
             top += tr.fontHeight;
         }
     }

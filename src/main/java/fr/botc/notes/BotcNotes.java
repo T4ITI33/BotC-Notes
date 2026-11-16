@@ -50,6 +50,16 @@ public class BotcNotes implements ClientModInitializer {
         }
     }
 
+    /** Touche « libérer la souris » physiquement enfoncée (fonctionne aussi quand un écran est ouvert). */
+    public static boolean isCursorKeyDown(MinecraftClient mc) {
+        InputUtil.Key key = KeyBindingHelper.getBoundKeyOf(cursorKey);
+        long handle = mc.getWindow().getHandle();
+        if (key.getCategory() == InputUtil.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(handle, key.getCode()) == GLFW.GLFW_PRESS;
+        }
+        return key.getCode() != InputUtil.UNKNOWN_KEY.getCode() && InputUtil.isKeyPressed(handle, key.getCode());
+    }
+
     private static String worldKey(MinecraftClient mc) {
         String raw;
         IntegratedServer server = mc.getServer();

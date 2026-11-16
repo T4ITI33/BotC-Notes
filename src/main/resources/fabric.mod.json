@@ -3,12 +3,13 @@
   "id": "botc-notes",
   "version": "${version}",
   "name": "BotC Notes",
-  "description": "Un bloc-notes à l'écran : N pour l'afficher, Alt maintenu pour libérer la souris, écrire, déplacer et redimensionner.",
+  "description": "Un bloc-notes à l'écran : N pour l'afficher, Alt pour libérer la souris (appui ou maintien, au choix dans la config), écrire, déplacer et redimensionner.",
   "authors": ["_Taiti"],
   "license": "All-Rights-Reserved",
   "environment": "client",
   "entrypoints": {
-    "client": ["fr.botc.notes.BotcNotes"]
+    "client": ["fr.botc.notes.BotcNotes"],
+    "modmenu": ["fr.botc.notes.ModMenuCompat"]
   },
   "depends": {
     "fabricloader": ">=0.16.0",

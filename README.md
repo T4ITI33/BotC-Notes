@@ -18,5 +18,6 @@ Le jar se trouve dans `build/libs/`.
 - `src/main/java/fr/botc/notes/BotcNotes.java` : point d'entrée, touches N / Alt
 - `NoteScreen.java` : écran du bloc-notes
 - `NoteRenderer.java` : affichage
-- `NoteData.java` : sauvegarde des notes
+- `NoteData.java` : sauvegarde des notes et réglages
+- `ConfigScreen.java` / `ModMenuCompat.java` : écran de réglages (via Mod Menu, facultatif)
 - `src/main/resources/assets/botc-notes/lang/` : textes FR / EN
